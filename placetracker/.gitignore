@@ -1,0 +1,42 @@
+# Dependencies
+/node_modules
+
+# Production build artifacts
+/build
+/dist
+/out
+/es
+/lib
+
+# Testing coverage
+/coverage
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS and Editor files
+.DS_Store
+.idea/
+.vscode/
+*.suo
+*.user
+*.cas
+*.njsproj
+*.sln
+*.vssscc
+.npm/
+
+# Thumbnails
+.sass-cache/
+.cache/
+.next/ # For Next.js projects
