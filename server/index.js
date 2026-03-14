@@ -20,6 +20,9 @@ app.use(clerkMiddleware());
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use("/api/user", userRoutes);
+app.use("/api/applications", require("./routes/applications"));
+app.use("/api/roadmap",      require("./routes/roadmap"));      
+app.use("/api/events",       require("./routes/events"));
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get("/api/health", (req, res) => {
