@@ -8,7 +8,7 @@ router.use(requireAuth);
 router.get('/', asyncHandler(async(req, res)=> {
     const {rows} = await db.query(
         `SELECT * FROM applications
-        WHERE user_id = $1
+        WHERE clerk_user_id = $1
         ORDER BY created_at DESC`,
         [req.userId]
     );

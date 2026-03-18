@@ -104,20 +104,6 @@ router.put('/topics/:id', asyncHandler(async(req, res)=>{
     res.json(rows[0]);
 }));
 
-router.put("/topics/:id", asyncHandler(async (req, res) => {
-  const { title, status, sort_order } = req.body;
- 
-  const { rows } = await db.query(
-    `UPDATE roadmap_topics 
-     SET title=$1, status=$2, sort_order=$3
-     WHERE id=$4 AND clerk_user_id=$5
-     RETURNING *`,
-    [title, status || "not_started", sort_order || 0, req.params.id, req.userId]
-  );
- 
-  if (!rows[0]) return res.status(404).json({ error: "Topic not found" });
-  res.json(rows[0]);
-}));
 
 router.delete("/topics/:id", asyncHandler(async (req, res) => {
   const { rowCount } = await db.query(

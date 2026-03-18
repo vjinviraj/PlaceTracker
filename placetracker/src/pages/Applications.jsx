@@ -1,20 +1,42 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../context/AuthContext";
-;
 import {
   Plus, Search, Pencil, Trash2, ExternalLink,
   BriefcaseBusiness, Filter, X, ChevronDown, ChevronUp,
-  FileText, StickyNote, Link2, Sparkles,
+  FileText, StickyNote, Link2,
 } from "lucide-react";
 import toast from "react-hot-toast";
-
-
+import api from "../lib/api";
 
 const COLORS = {
   Applied: "#5E77C0", Interview: "#22D3EE", Offer: "#10b981", Rejected: "#ef4444",
 };
 const STATUSES = ["All","Applied","Interview","Offer","Rejected"];
 const EMPTY_FORM = { company:"", role:"", link:"", dateApplied:"", status:"Applied", notes:"", resumeLabel:"", resumeLink:"" };
+
+// Maps frontend field names → backend column names
+const toApiPayload = (form) => ({
+  company:      form.company,
+  role:         form.role,
+  status:       form.status,
+  date_applied: form.dateApplied || null,
+  link:         form.link || null,
+  notes:        form.notes || null,
+  resume_label: form.resumeLabel || null,
+  resume_url:   form.resumeLink || null,
+});
+
+// Maps backend column names → frontend field names
+const fromApi = (row) => ({
+  id:          row.id,
+  company:     row.company,
+  role:        row.role,
+  status:      row.status,
+  dateApplied: row.date_applied ? row.date_applied.slice(0, 10) : "",
+  link:        row.link || "",
+  notes:       row.notes || "",
+  resumeLabel: row.resume_label || "",
+  resumeLink:  row.resume_url || "",
+});
 
 /* ─── App Modal ─── */
 function AppModal({ open, onClose, onSave, initial }) {
@@ -42,7 +64,6 @@ function AppModal({ open, onClose, onSave, initial }) {
           <button className="modal-close" onClick={onClose}><X size={18}/></button>
         </div>
 
-        {/* Tabs */}
         <div style={{ display:"flex", gap:4, marginBottom:20, background:"rgba(255,255,255,0.03)", borderRadius:10, padding:4 }}>
           {[["basic","Details"],["notes","Notes"],["resume","Resume"]].map(([k,l])=>(
             <button key={k} onClick={()=>setTab(k)} style={{ flex:1, height:32, borderRadius:7, border:"none", fontSize:12, fontWeight:600, cursor:"pointer", transition:"all 0.2s", fontFamily:"Montserrat,sans-serif", background: tab===k ? "rgba(34,211,238,0.15)" : "transparent", color: tab===k ? "#22D3EE" : "#8FA0D7", boxShadow: tab===k ? "0 0 0 1px rgba(34,211,238,0.25)" : "none" }}>
@@ -82,14 +103,8 @@ function AppModal({ open, onClose, onSave, initial }) {
           {tab === "notes" && (
             <div style={{ marginBottom:20, display:"flex", flexDirection:"column", gap:6 }}>
               <label className="field-label">Notes & Interview Feedback</label>
-              <textarea
-                value={form.notes}
-                onChange={(e)=>setForm({...form,notes:e.target.value})}
-                placeholder="Recruiter name, interview rounds, feedback, next steps, links to Glassdoor reviews..."
-                className="field-input"
-                style={{ height:160, padding:"12px 14px", resize:"vertical", lineHeight:1.7 }}
-              />
-              <p style={{ fontSize:11, color:"#5A6386" }}>Use this to track everything about this application — rounds, contact info, prep notes.</p>
+              <textarea value={form.notes} onChange={(e)=>setForm({...form,notes:e.target.value})} placeholder="Recruiter name, interview rounds, feedback, next steps..." className="field-input" style={{ height:160, padding:"12px 14px", resize:"vertical", lineHeight:1.7 }}/>
+              <p style={{ fontSize:11, color:"#5A6386" }}>Use this to track everything about this application.</p>
             </div>
           )}
 
@@ -104,9 +119,7 @@ function AppModal({ open, onClose, onSave, initial }) {
                 <input value={form.resumeLink} onChange={(e)=>setForm({...form,resumeLink:e.target.value})} placeholder="Google Drive / Notion / Dropbox link..." className="field-input"/>
               </div>
               <div style={{ background:"rgba(34,211,238,0.05)", border:"1px solid rgba(34,211,238,0.15)", borderRadius:10, padding:"12px 14px" }}>
-                <p style={{ fontSize:12.5, color:"#8FA0D7", lineHeight:1.7 }}>
-                  Link the exact resume version you sent for this application. This helps you track which version performed best across different companies.
-                </p>
+                <p style={{ fontSize:12.5, color:"#8FA0D7", lineHeight:1.7 }}>Link the exact resume version you sent for this application.</p>
               </div>
             </div>
           )}
@@ -150,7 +163,6 @@ function DeleteDialog({ open, onClose, onConfirm, company }) {
 
 /* ─── Expandable Row Detail ─── */
 function RowDetail({ app }) {
-  const color = COLORS[app.status];
   const hasNotes = app.notes?.trim();
   const hasResume = app.resumeLabel || app.resumeLink;
   if (!hasNotes && !hasResume) return (
@@ -175,7 +187,7 @@ function RowDetail({ app }) {
           </div>
           {app.resumeLabel && <p style={{ fontSize:13, color:"#E5E9F7", fontWeight:600, marginBottom:4 }}>{app.resumeLabel}</p>}
           {app.resumeLink && (
-            <a href={app.resumeLink} target="_blank" rel="noopener noreferrer" style={{ display:"inline-flex", alignItems:"center", gap:5, fontSize:12.5, color:"#22D3EE", textDecoration:"none", padding:"5px 12px", borderRadius:8, background:"rgba(34,211,238,0.07)", border:"1px solid rgba(34,211,238,0.2)", transition:"all 0.2s" }}>
+            <a href={app.resumeLink} target="_blank" rel="noopener noreferrer" style={{ display:"inline-flex", alignItems:"center", gap:5, fontSize:12.5, color:"#22D3EE", textDecoration:"none", padding:"5px 12px", borderRadius:8, background:"rgba(34,211,238,0.07)", border:"1px solid rgba(34,211,238,0.2)" }}>
               <Link2 size={12}/> View Resume
             </a>
           )}
@@ -187,10 +199,8 @@ function RowDetail({ app }) {
 
 /* ─── Main ─── */
 export default function Applications() {
-  const { user } = useAuth();
-  const storageKey = `placetracker_apps_${user?.email}`;
-
-  const [apps, setApps] = useState(() => JSON.parse(localStorage.getItem(storageKey) || "[]"));
+  const [apps, setApps] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [modalOpen, setModalOpen] = useState(false);
@@ -199,6 +209,7 @@ export default function Applications() {
   const [expandedId, setExpandedId] = useState(null);
   const [mounted, setMounted] = useState(false);
 
+  // ── Fetch all applications from API on mount ──────────────────────────────
   useEffect(() => {
     setMounted(true);
     const fn = (e) => {
@@ -206,21 +217,58 @@ export default function Applications() {
       document.documentElement.style.setProperty("--mouse-y", `${e.clientY}px`);
     };
     window.addEventListener("mousemove", fn, { passive:true });
+
+    api.get("/applications")
+      .then(res => setApps(res.data.map(fromApi)))
+      .catch(() => toast.error("Failed to load applications"))
+      .finally(() => setLoading(false));
+
     return () => window.removeEventListener("mousemove", fn);
   }, []);
 
-  const save = (updated) => { setApps(updated); localStorage.setItem(storageKey, JSON.stringify(updated)); };
-  const handleAdd = (form) => { save([{ ...form, id:Date.now().toString() }, ...apps]); toast.success("Application added!"); setModalOpen(false); };
-  const handleEdit = (form) => { save(apps.map(a => a.id===editTarget.id ? {...form,id:a.id} : a)); toast.success("Application updated!"); setEditTarget(null); };
-  const handleDelete = () => { save(apps.filter(a => a.id!==deleteTarget.id)); toast.success("Application deleted"); setDeleteTarget(null); };
+  // ── Add ───────────────────────────────────────────────────────────────────
+  const handleAdd = async (form) => {
+    try {
+      const res = await api.post("/applications", toApiPayload(form));
+      setApps(prev => [fromApi(res.data), ...prev]);
+      toast.success("Application added!");
+      setModalOpen(false);
+    } catch {
+      toast.error("Failed to add application");
+    }
+  };
+
+  // ── Edit ──────────────────────────────────────────────────────────────────
+  const handleEdit = async (form) => {
+    try {
+      const res = await api.put(`/applications/${editTarget.id}`, toApiPayload(form));
+      setApps(prev => prev.map(a => a.id === editTarget.id ? fromApi(res.data) : a));
+      toast.success("Application updated!");
+      setEditTarget(null);
+    } catch {
+      toast.error("Failed to update application");
+    }
+  };
+
+  // ── Delete ────────────────────────────────────────────────────────────────
+  const handleDelete = async () => {
+    try {
+      await api.delete(`/applications/${deleteTarget.id}`);
+      setApps(prev => prev.filter(a => a.id !== deleteTarget.id));
+      toast.success("Application deleted");
+      setDeleteTarget(null);
+    } catch {
+      toast.error("Failed to delete application");
+    }
+  };
 
   const filtered = apps.filter(a => {
     const ms = a.company.toLowerCase().includes(search.toLowerCase()) || a.role.toLowerCase().includes(search.toLowerCase());
-    const mf = statusFilter==="All" || a.status===statusFilter;
+    const mf = statusFilter === "All" || a.status === statusFilter;
     return ms && mf;
   });
 
-  const toggleExpand = (id) => setExpandedId(expandedId===id ? null : id);
+  const toggleExpand = (id) => setExpandedId(expandedId === id ? null : id);
 
   return (
     <div style={{ minHeight:"100vh", background:"#02050E", overflowX:"hidden", paddingTop:80, fontFamily:"Montserrat, sans-serif", position:"relative" }}>
@@ -258,9 +306,11 @@ export default function Applications() {
         .expand-btn { width:28px; height:28px; border-radius:7px; border:1px solid rgba(143,160,215,0.12); background:transparent; color:#5A6386; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; }
         .expand-btn:hover { border-color:rgba(34,211,238,0.3); color:#22D3EE; }
         .expand-btn.open { border-color:rgba(34,211,238,0.3); color:#22D3EE; background:rgba(34,211,238,0.06); }
-        .has-indicator { width:6px; height:6px; border-radius:50%; background:#22D3EE; box-shadow:0 0 6px rgba(34,211,238,0.6); flex-shrink:0; }
         .mob-card { background:rgba(15,23,42,0.6); backdrop-filter:blur(12px); border:1px solid rgba(143,160,215,0.13); border-radius:14px; padding:16px; margin-bottom:10px; box-shadow:0 6px 20px rgba(0,0,0,0.3); }
         .empty-state { text-align:center; padding:60px 20px; color:#5A6386; font-size:14px; }
+        .loading-state { text-align:center; padding:60px 20px; color:#5A6386; font-size:14px; display:flex; flex-direction:column; align-items:center; gap:12px; }
+        .spinner { width:28px; height:28px; border:2.5px solid rgba(34,211,238,0.15); border-top-color:#22D3EE; border-radius:50%; animation:spin 0.7s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
         .modal-overlay { position:fixed; inset:0; z-index:9000; background:rgba(2,5,14,0.75); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; padding:24px; }
         .modal-box { background:rgba(10,18,42,0.95); backdrop-filter:blur(24px); border:1px solid rgba(143,160,215,0.18); border-radius:20px; padding:28px; width:100%; box-shadow:0 40px 100px rgba(0,0,0,0.7),inset 0 1px 0 rgba(255,255,255,0.05); font-family:Montserrat,sans-serif; animation:modalIn 0.25s cubic-bezier(0.25,1,0.5,1); }
         @keyframes modalIn { from { opacity:0; transform:scale(0.95) translateY(12px); } to { opacity:1; transform:none; } }
@@ -322,7 +372,11 @@ export default function Applications() {
               <th>Company</th><th>Role</th><th>Date Applied</th><th>Status</th><th>Extras</th><th>Actions</th>
             </tr></thead>
             <tbody>
-              {filtered.length > 0 ? filtered.map((app) => {
+              {loading ? (
+                <tr><td colSpan={6}>
+                  <div className="loading-state"><div className="spinner"/><span>Loading applications...</span></div>
+                </td></tr>
+              ) : filtered.length > 0 ? filtered.map((app) => {
                 const color = COLORS[app.status];
                 const isExp = expandedId === app.id;
                 const hasExtras = app.notes?.trim() || app.resumeLabel || app.resumeLink;
@@ -340,8 +394,8 @@ export default function Applications() {
                       <td><span className="status-pill" style={{ color, borderColor:`${color}40`, background:`${color}12` }}>{app.status}</span></td>
                       <td>
                         <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                          {app.notes?.trim() && <span title="Has notes" style={{ fontSize:10, color:"#8FA0D7", background:"rgba(143,160,215,0.1)", border:"1px solid rgba(143,160,215,0.2)", borderRadius:4, padding:"2px 7px" }}>Note</span>}
-                          {(app.resumeLabel||app.resumeLink) && <span title="Resume linked" style={{ fontSize:10, color:"#22D3EE", background:"rgba(34,211,238,0.08)", border:"1px solid rgba(34,211,238,0.2)", borderRadius:4, padding:"2px 7px" }}>CV</span>}
+                          {app.notes?.trim() && <span style={{ fontSize:10, color:"#8FA0D7", background:"rgba(143,160,215,0.1)", border:"1px solid rgba(143,160,215,0.2)", borderRadius:4, padding:"2px 7px" }}>Note</span>}
+                          {(app.resumeLabel||app.resumeLink) && <span style={{ fontSize:10, color:"#22D3EE", background:"rgba(34,211,238,0.08)", border:"1px solid rgba(34,211,238,0.2)", borderRadius:4, padding:"2px 7px" }}>CV</span>}
                         </div>
                       </td>
                       <td>
@@ -365,7 +419,9 @@ export default function Applications() {
                   </>
                 );
               }) : (
-                <tr><td colSpan={6}><div className="empty-state">{apps.length===0 ? "No applications yet. Click 'Add Application' to get started." : "No results match your search or filter."}</div></td></tr>
+                <tr><td colSpan={6}>
+                  <div className="empty-state">{apps.length===0 ? "No applications yet. Click 'Add Application' to get started." : "No results match your search or filter."}</div>
+                </td></tr>
               )}
             </tbody>
           </table>
@@ -373,7 +429,9 @@ export default function Applications() {
 
         {/* Mobile Cards */}
         <div className="mobile-cards">
-          {filtered.length > 0 ? filtered.map(app => {
+          {loading ? (
+            <div className="loading-state"><div className="spinner"/><span>Loading...</span></div>
+          ) : filtered.length > 0 ? filtered.map(app => {
             const color = COLORS[app.status];
             const isExp = expandedId === app.id;
             const hasExtras = app.notes?.trim() || app.resumeLabel || app.resumeLink;

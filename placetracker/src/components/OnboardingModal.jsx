@@ -1,10 +1,8 @@
-// src/components/OnboardingModal.jsx
-// Drop into your Dashboard or App.jsx — shows once on first login per user
-
 import { useState, useEffect } from "react";
+import { useUser } from "@clerk/react";
 import {
   BriefcaseBusiness, Map, Calendar, ChevronRight,
-  CheckCircle2, X, Sparkles, ArrowRight,
+  X, Sparkles,
 } from "lucide-react";
 
 const STEPS = [
@@ -19,26 +17,20 @@ const STEPS = [
     illustration: (
       <svg viewBox="0 0 240 160" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",height:"100%"}}>
         <rect x="20" y="20" width="200" height="120" rx="12" fill="rgba(15,23,42,0.8)" stroke="rgba(34,211,238,0.2)" strokeWidth="1"/>
-        {/* Header row */}
         <rect x="35" y="35" width="60" height="8" rx="3" fill="rgba(143,160,215,0.3)"/>
         <rect x="35" y="47" width="40" height="6" rx="2" fill="rgba(143,160,215,0.15)"/>
-        {/* Status pill */}
         <rect x="160" y="33" width="45" height="14" rx="7" fill="rgba(34,211,238,0.15)" stroke="rgba(34,211,238,0.3)" strokeWidth="1"/>
         <rect x="168" y="38" width="29" height="4" rx="2" fill="rgba(34,211,238,0.6)"/>
-        {/* Divider */}
         <rect x="35" y="60" width="170" height="1" fill="rgba(143,160,215,0.08)"/>
-        {/* Row 2 */}
         <rect x="35" y="70" width="55" height="7" rx="2" fill="rgba(143,160,215,0.25)"/>
         <rect x="35" y="81" width="38" height="5" rx="2" fill="rgba(143,160,215,0.12)"/>
         <rect x="160" y="68" width="45" height="14" rx="7" fill="rgba(16,185,129,0.12)" stroke="rgba(16,185,129,0.3)" strokeWidth="1"/>
         <rect x="168" y="73" width="29" height="4" rx="2" fill="rgba(16,185,129,0.5)"/>
         <rect x="35" y="95" width="170" height="1" fill="rgba(143,160,215,0.08)"/>
-        {/* Row 3 */}
         <rect x="35" y="105" width="48" height="7" rx="2" fill="rgba(143,160,215,0.2)"/>
         <rect x="35" y="116" width="32" height="5" rx="2" fill="rgba(143,160,215,0.1)"/>
         <rect x="160" y="103" width="45" height="14" rx="7" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.25)" strokeWidth="1"/>
         <rect x="168" y="108" width="29" height="4" rx="2" fill="rgba(239,68,68,0.4)"/>
-        {/* Plus button */}
         <circle cx="210" cy="130" r="12" fill="rgba(34,211,238,0.2)" stroke="rgba(34,211,238,0.4)" strokeWidth="1"/>
         <rect x="205" y="129" width="10" height="2" rx="1" fill="#22D3EE"/>
         <rect x="209" y="125" width="2" height="10" rx="1" fill="#22D3EE"/>
@@ -56,26 +48,23 @@ const STEPS = [
     illustration: (
       <svg viewBox="0 0 240 160" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",height:"100%"}}>
         <rect x="20" y="15" width="200" height="130" rx="12" fill="rgba(15,23,42,0.8)" stroke="rgba(16,185,129,0.2)" strokeWidth="1"/>
-        {/* Title */}
         <rect x="35" y="28" width="80" height="8" rx="3" fill="rgba(143,160,215,0.3)"/>
-        {/* Overall progress */}
         <rect x="35" y="45" width="170" height="6" rx="3" fill="rgba(143,160,215,0.1)"/>
-        <rect x="35" y="45" width="102" height="6" rx="3" fill="rgba(16,185,129,0.6)" style={{filter:"drop-shadow(0 0 4px rgba(16,185,129,0.5))"}}/>
+        <rect x="35" y="45" width="102" height="6" rx="3" fill="rgba(16,185,129,0.6)"/>
         <rect x="185" y="43" width="20" height="10" rx="2" fill="rgba(16,185,129,0.15)"/>
         <rect x="187" y="46" width="16" height="4" rx="1" fill="rgba(16,185,129,0.5)"/>
-        {/* Topic rows */}
         {[
-          {y:65, w:110, done:true, pct:0.8, c:"#22D3EE"},
-          {y:82, w:90,  done:true, pct:0.55, c:"#22D3EE"},
-          {y:99, w:75,  done:false, pct:0.3, c:"#10b981"},
-          {y:116, w:60, done:false, pct:0.1, c:"#f59e0b"},
+          {y:65,w:110,done:true,pct:0.8,c:"#22D3EE"},
+          {y:82,w:90,done:true,pct:0.55,c:"#22D3EE"},
+          {y:99,w:75,done:false,pct:0.3,c:"#10b981"},
+          {y:116,w:60,done:false,pct:0.1,c:"#f59e0b"},
         ].map((r,i)=>(
           <g key={i}>
             <circle cx="44" cy={r.y+4} r="5" fill={r.done?"rgba(34,211,238,0.2)":"rgba(143,160,215,0.1)"} stroke={r.done?"rgba(34,211,238,0.5)":"rgba(143,160,215,0.2)"} strokeWidth="1"/>
             {r.done && <path d={`M${41} ${r.y+4} l3 3 l5-5`} stroke="#22D3EE" strokeWidth="1.5" strokeLinecap="round"/>}
             <rect x="56" y={r.y} width={r.w} height="5" rx="2" fill="rgba(143,160,215,0.2)"/>
             <rect x="145" y={r.y} width="50" height="5" rx="2" fill="rgba(143,160,215,0.1)"/>
-            <rect x="145" y={r.y} width={50*r.pct} height="5" rx="2" fill={r.c} style={{filter:`drop-shadow(0 0 3px ${r.c}80)`}}/>
+            <rect x="145" y={r.y} width={50*r.pct} height="5" rx="2" fill={r.c}/>
           </g>
         ))}
       </svg>
@@ -92,16 +81,13 @@ const STEPS = [
     illustration: (
       <svg viewBox="0 0 240 160" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",height:"100%"}}>
         <rect x="20" y="15" width="200" height="130" rx="12" fill="rgba(15,23,42,0.8)" stroke="rgba(245,158,11,0.2)" strokeWidth="1"/>
-        {/* Month header */}
         <rect x="35" y="27" width="60" height="8" rx="3" fill="rgba(143,160,215,0.3)"/>
         <circle cx="195" cy="31" r="7" fill="rgba(245,158,11,0.1)" stroke="rgba(245,158,11,0.3)" strokeWidth="1"/>
         <rect x="192" y="30" width="6" height="2" rx="1" fill="#f59e0b"/>
         <rect x="194" y="27" width="2" height="7" rx="1" fill="#f59e0b"/>
-        {/* Day headers */}
         {["S","M","T","W","T","F","S"].map((d,i)=>(
           <text key={i} x={38+i*26} y="52" fontSize="7" fill="rgba(143,160,215,0.4)" fontFamily="monospace">{d}</text>
         ))}
-        {/* Grid cells — 5 rows x 7 cols */}
         {Array.from({length:35},(_,i)=>{
           const x = 35 + (i%7)*26;
           const y = 58 + Math.floor(i/7)*17;
@@ -112,7 +98,7 @@ const STEPS = [
             <g key={i}>
               {isToday && <circle cx={x+5} cy={y+5} r="7" fill="rgba(34,211,238,0.15)" stroke="rgba(34,211,238,0.3)" strokeWidth="1"/>}
               <text x={x+5} y={y+8} fontSize="7" fill={isToday?"#22D3EE":"rgba(143,160,215,0.5)"} textAnchor="middle" fontFamily="monospace">{i+1}</text>
-              {hasEvent && <rect x={x} y={y+11} width="14" height="3" rx="1.5" fill={eventColor} style={{filter:`drop-shadow(0 0 2px ${eventColor}80)`}}/>}
+              {hasEvent && <rect x={x} y={y+11} width="14" height="3" rx="1.5" fill={eventColor}/>}
             </g>
           );
         })}
@@ -121,19 +107,28 @@ const STEPS = [
   },
 ];
 
-export default function OnboardingModal({ userEmail }) {
-  const key = `placetracker_onboarded_${userEmail}`;
+export default function OnboardingModal() {
+  const { user, isLoaded } = useUser();
   const [visible, setVisible] = useState(false);
   const [step, setStep] = useState(0);
   const [animating, setAnimating] = useState(false);
 
   useEffect(() => {
-    if (!localStorage.getItem(key)) setVisible(true);
-  }, [key]);
+    // Wait for Clerk to load, then check if user has been onboarded
+    // unsafeMetadata is stored on the Clerk user object — persists across devices
+    if (isLoaded && user && !user.unsafeMetadata?.onboarded) {
+      setVisible(true);
+    }
+  }, [isLoaded, user]);
 
-  const dismiss = () => {
-    localStorage.setItem(key, "true");
+  const dismiss = async () => {
     setVisible(false);
+    // Save onboarded flag to Clerk user metadata
+    try {
+      await user.update({ unsafeMetadata: { ...user.unsafeMetadata, onboarded: true } });
+    } catch {
+      // Silently fail — worst case they see it again next login
+    }
   };
 
   const next = () => {
@@ -167,7 +162,7 @@ export default function OnboardingModal({ userEmail }) {
         .ob-step { transition:opacity 0.18s ease, transform 0.18s ease; }
         .ob-step.animating { opacity:0; transform:translateX(12px); }
         .ob-illus { width:100%; height:180px; background:linear-gradient(135deg,rgba(15,23,42,0.9),rgba(10,15,35,0.95)); border-bottom:1px solid rgba(143,160,215,0.08); display:flex; align-items:center; justify-content:center; padding:20px 40px; position:relative; overflow:hidden; }
-        .ob-illus::before { content:''; position:absolute; inset:0; background:radial-gradient(circle at 50% 50%, rgba(34,211,238,0.04), transparent 60%); }
+        .ob-illus::before { content:''; position:absolute; inset:0; background:radial-gradient(circle at 50% 50%,rgba(34,211,238,0.04),transparent 60%); }
         .ob-body { padding:28px 32px 24px; }
         .ob-badge { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:600; padding:4px 12px; border-radius:999px; letter-spacing:0.5px; margin-bottom:12px; }
         .ob-heading { font-family:'EB Garamond',serif; font-size:26px; font-weight:600; color:#F8FAFF; line-height:1.2; margin-bottom:12px; }
@@ -191,12 +186,10 @@ export default function OnboardingModal({ userEmail }) {
         <div className="ob-card" style={{ position:"relative" }}>
           <button className="ob-close" onClick={dismiss}><X size={14}/></button>
 
-          {/* Illustration */}
-          <div className="ob-illus" style={{ borderColor:`rgba(${s.color==="#22D3EE"?"34,211,238":s.color==="#10b981"?"16,185,129":"245,158,11"},0.12)` }}>
+          <div className="ob-illus">
             {s.illustration}
           </div>
 
-          {/* Content */}
           <div className={`ob-step${animating?" animating":""}`}>
             <div className="ob-body">
               <div className="ob-badge" style={{ background:`${s.color}12`, border:`1px solid ${s.color}30`, color:s.color }}>
@@ -219,7 +212,9 @@ export default function OnboardingModal({ userEmail }) {
                 <button className="ob-skip" onClick={dismiss}>Skip tour</button>
               </div>
               <button className="ob-next" onClick={next}>
-                {step < STEPS.length - 1 ? <><span>Next</span><ChevronRight size={15}/></> : <><Sparkles size={14}/><span>Let's go!</span></>}
+                {step < STEPS.length - 1
+                  ? <><span>Next</span><ChevronRight size={15}/></>
+                  : <><Sparkles size={14}/><span>Let's go!</span></>}
               </button>
             </div>
           </div>
